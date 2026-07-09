@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IM7 / IIm7 実音クイズ</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f7f7f7;
+      color: #222;
+    }
+
+    .app {
+      max-width: 520px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 18px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-top: 0;
+    }
+
+    .question {
+      font-size: 22px;
+      font-weight: bold;
+      line-height: 1.6;
+      margin: 20px 0;
+      padding: 16px;
+      background: #f0f0f0;
+      border-radius: 12px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    select, button {
+      font-size: 16px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+    }
+
+    select {
+      flex: 1;
+    }
+
+    .notes {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 20px 0;
+    }
+
+    .note {
+      padding: 14px 8px;
+      font-size: 17px;
+      border: 1px solid #ccc;
+      background: #fff;
+      border-radius: 12px;
+    }
+
+    .note.selected {
+      background: #222;
+      color: white;
+      border-color: #222;
+    }
+
+    .main-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .main-buttons button {
+      font-weight: bold;
+    }
+
+    .result {
+      margin-top: 20px;
+      font-size: 18px;
+      line-height: 1.6;
+      min-height: 80px;
+      white-space: pre-wrap;
+    }
+
+    .small {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.6;
+      margin-top: 20px;
+    }
+
+    .score {
+      font-size: 14px;
+      color: #555;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>IM7 / IIm7 実音クイズ</h1>
+
+    <div class="controls">
+      <select id="keyMode">
+        <option value="random">キー：ランダム</option>
+      </select>
+
+      <select id="chordMode">
+        <option value="random">コード：ランダム</option>
+        <option value="IM7">IM7のみ</option>
+        <option value="IIm7">IIm7のみ</option>
+      </select>
+    </div>
+
+    <div class="question" id="question"></div>
+
+    <div class="notes" id="notes"></div>
+
+    <div class="main-buttons">
+      <button onclick="checkAnswer()">判定</button>
+      <button onclick="newQuestion()">次の問題</button>
+    </div>
+
+    <div class="result" id="result"></div>
+    <div class="score" id="score"></div>
+
+    <div class="small">
+      IM7 = 1, 3, 5, 7<br>
+      IIm7 = 2, 4, 6, 1<br>
+      ※ボタンは実音ベースなので、C# / Db のように異名同音をまとめています。
+    </div>
+  </div>
+
+  <script>
+    const keys = [
+      { name: "C",  scale: ["C", "D", "E", "F", "G", "A", "B"] },
+      { name: "F",  scale: ["F", "G", "A", "Bb", "C", "D", "E"] },
+      { name: "Bb", scale: ["Bb", "C", "D", "Eb", "F", "G", "A"] },
+      { name: "Eb", scale: ["Eb", "F", "G", "Ab", "Bb", "C", "D"] },
+      { name: "Ab", scale: ["Ab", "Bb", "C", "Db", "Eb", "F", "G"] },
+      { name: "Db", scale: ["Db", "Eb", "F", "Gb", "Ab", "Bb", "C"] },
+      { name: "Gb", scale: ["Gb", "Ab", "Bb", "Cb", "Db", "Eb", "F"] },
+      { name: "B",  scale: ["B", "C#", "D#", "E", "F#", "G#", "A#"] },
+      { name: "E",  scale: ["E", "F#", "G#", "A", "B", "C#", "D#"] },
+      { name: "A",  scale: ["A", "B", "C#", "D", "E", "F#", "G#"] },
+      { name: "D",  scale: ["D", "E", "F#", "G", "A", "B", "C#"] },
+      { name: "G",  scale: ["G", "A", "B", "C", "D", "E", "F#"] }
+    ];
+
+    const noteToPc = {
+      "C": 0, "B#": 0,
+      "C#": 1, "Db": 1,
+      "D": 2,
+      "D#": 3, "Eb": 3,
+      "E": 4, "Fb": 4,
+      "F": 5, "E#": 5,
+      "F#": 6, "Gb": 6,
+      "G": 7,
+      "G#": 8, "Ab": 8,
+      "A": 9,
+      "A#": 10, "Bb": 10,
+      "B": 11, "Cb": 11
+    };
+
+    const choices = [
+      { label: "C", pc: 0 },
+      { label: "C# / Db", pc: 1 },
+      { label: "D", pc: 2 },
+      { label: "D# / Eb", pc: 3 },
+      { label: "E / Fb", pc: 4 },
+      { label: "F / E#", pc: 5 },
+      { label: "F# / Gb", pc: 6 },
+      { label: "G", pc: 7 },
+      { label: "G# / Ab", pc: 8 },
+      { label: "A", pc: 9 },
+      { label: "A# / Bb", pc: 10 },
+      { label: "B / Cb", pc: 11 }
+    ];
+
+    let currentQuestion = null;
+    let selected = new Set();
+
+    let total = Number(localStorage.getItem("total") || 0);
+    let correct = Number(localStorage.getItem("correct") || 0);
+
+    function setupKeySelect() {
+      const select = document.getElementById("keyMode");
+
+      keys.forEach(k => {
+        const option = document.createElement("option");
+        option.value = k.name;
+        option.textContent = "キー：" + k.name;
+        select.appendChild(option);
+      });
+    }
+
+    function pickRandom(array) {
+      return array[Math.floor(Math.random() * array.length)];
+    }
+
+    function makeQuestion() {
+      const keyMode = document.getElementById("keyMode").value;
+      const chordMode = document.getElementById("chordMode").value;
+
+      const key = keyMode === "random"
+        ? pickRandom(keys)
+        : keys.find(k => k.name === keyMode);
+
+      const chordType = chordMode === "random"
+        ? pickRandom(["IM7", "IIm7"])
+        : chordMode;
+
+      let chordName;
+      let toneIndexes;
+
+      if (chordType === "IM7") {
+        chordName = key.scale[0] + "M7";
+        toneIndexes = [0, 2, 4, 6];
+      } else {
+        chordName = key.scale[1] + "m7";
+        toneIndexes = [1, 3, 5, 0];
+      }
+
+      const tones = toneIndexes.map(i => key.scale[i]);
+      const pcs = tones.map(n => noteToPc[n]);
+
+      return {
+        keyName: key.name,
+        chordType,
+        chordName,
+        tones,
+        pcs
+      };
+    }
+
+    function renderQuestion() {
+      document.getElementById("question").textContent =
+        "Key: " + currentQuestion.keyName + "\n" +
+        currentQuestion.chordType + " = " + currentQuestion.chordName;
+    }
+
+    function renderNotes() {
+      const container = document.getElementById("notes");
+      container.innerHTML = "";
+
+      choices.forEach(choice => {
+        const button = document.createElement("button");
+        button.className = "note";
+        button.textContent = choice.label;
+
+        if (selected.has(choice.pc)) {
+          button.classList.add("selected");
+        }
+
+        button.onclick = () => {
+          if (selected.has(choice.pc)) {
+            selected.delete(choice.pc);
+          } else {
+            selected.add(choice.pc);
+          }
+          renderNotes();
+        };
+
+        container.appendChild(button);
+      });
+    }
+
+    function newQuestion() {
+      currentQuestion = makeQuestion();
+      selected = new Set();
+      document.getElementById("result").textContent = "";
+      renderQuestion();
+      renderNotes();
+      renderScore();
+    }
+
+    function checkAnswer() {
+      const answer = currentQuestion.pcs;
+      const isCorrect =
+        selected.size === answer.length &&
+        answer.every(pc => selected.has(pc));
+
+      total++;
+
+      if (isCorrect) {
+        correct++;
+        document.getElementById("result").textContent =
+          "正解。\n\n" +
+          currentQuestion.chordName + " = " +
+          currentQuestion.tones.join(" / ");
+      } else {
+        document.getElementById("result").textContent =
+          "違うかも。\n\n" +
+          "正解：\n" +
+          currentQuestion.chordName + " = " +
+          currentQuestion.tones.join(" / ");
+      }
+
+      localStorage.setItem("total", total);
+      localStorage.setItem("correct", correct);
+
+      renderScore();
+    }
+
+    function renderScore() {
+      const rate = total === 0 ? 0 : Math.round(correct / total * 100);
+      document.getElementById("score").textContent =
+        "スコア：" + correct + " / " + total + "（" + rate + "%）";
+    }
+
+    setupKeySelect();
+    newQuestion();
+  </script>
+</body>
+</html>
