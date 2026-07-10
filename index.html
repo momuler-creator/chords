@@ -187,34 +187,35 @@
       return map[note] || note;
     }
 
-    const germanNoteNames = {
-      "C": "C（ツェー）",
+    const noteReadings = {
+      "C": "C（シー）",
       "C#": "Cis（チス）",
       "Db": "Des（デス）",
-      "D": "D（デー）",
+      "D": "D（ディー）",
       "D#": "Dis（ディス）",
       "Eb": "Es（エス）",
-      "E": "E（エー）",
+      "E": "E（イー）",
       "F": "F（エフ）",
       "F#": "Fis（フィス）",
       "Gb": "Ges（ゲス）",
-      "G": "G（ゲー）",
+      "G": "G（ジー）",
       "G#": "Gis（ギス）",
       "Ab": "As（アス）",
-      "A": "A（アー）",
+      "A": "A（エー）",
       "A#": "Ais（アイス）",
       "Bb": "B（ベー）",
-      "B": "H（ハー）"
+      "B": "B（ビー）"
     };
 
-    function getGermanNames(notes) {
+    function getNoteReadings(notes) {
       return notes
         .map(normalizeNoteName)
-        .map(note => germanNoteNames[note] || note);
+        .map(note => noteReadings[note] || note);
     }
 
     let currentQuestion = null;
     let selected = new Set();
+    let alreadyAnswered = false;
 
     let total = Number(localStorage.getItem("total") || 0);
     let correct = Number(localStorage.getItem("correct") || 0);
@@ -289,11 +290,14 @@
         }
 
         button.onclick = () => {
+          if (alreadyAnswered) return;
+
           if (selected.has(choice.pc)) {
             selected.delete(choice.pc);
           } else {
             selected.add(choice.pc);
           }
+
           renderNotes();
         };
 
@@ -304,6 +308,7 @@
     function newQuestion() {
       currentQuestion = makeQuestion();
       selected = new Set();
+      alreadyAnswered = false;
       document.getElementById("result").textContent = "";
       renderQuestion();
       renderNotes();
@@ -317,6 +322,10 @@
         return;
       }
 
+      if (alreadyAnswered) {
+        return;
+      }
+
       const answer = currentQuestion.pcs;
 
       const isCorrect =
@@ -324,9 +333,10 @@
         answer.every(pc => selected.has(pc));
 
       total++;
+      alreadyAnswered = true;
 
       const displayTones = currentQuestion.tones.map(normalizeNoteName);
-      const germanNames = getGermanNames(currentQuestion.tones);
+      const readings = getNoteReadings(currentQuestion.tones);
 
       if (isCorrect) {
         correct++;
@@ -334,21 +344,22 @@
           "正解。\n\n" +
           currentQuestion.chordName + " = " +
           displayTones.join(" / ") + "\n\n" +
-          "ドイツ音名：\n" +
-          germanNames.join(" / ");
+          "音名読み：\n" +
+          readings.join(" / ");
       } else {
         document.getElementById("result").textContent =
           "違うかも。\n\n" +
           "正解：\n" +
           currentQuestion.chordName + " = " +
           displayTones.join(" / ") + "\n\n" +
-          "ドイツ音名：\n" +
-          germanNames.join(" / ");
+          "音名読み：\n" +
+          readings.join(" / ");
       }
 
       localStorage.setItem("total", total);
       localStorage.setItem("correct", correct);
 
+      renderNotes();
       renderScore();
     }
 
