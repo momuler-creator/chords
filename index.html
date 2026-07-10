@@ -35,6 +35,7 @@
       padding: 16px;
       background: #f0f0f0;
       border-radius: 12px;
+      white-space: pre-wrap;
     }
 
     .controls {
@@ -94,13 +95,6 @@
       white-space: pre-wrap;
     }
 
-    .small {
-      font-size: 14px;
-      color: #666;
-      line-height: 1.6;
-      margin-top: 20px;
-    }
-
     .score {
       font-size: 14px;
       color: #555;
@@ -135,12 +129,6 @@
 
     <div class="result" id="result"></div>
     <div class="score" id="score"></div>
-
-    <div class="small">
-      IM7 = 1, 3, 5, 7<br>
-      IIm7 = 2, 4, 6, 1<br>
-      ※ボタンは実音ベースなので、C# / Db のように異名同音をまとめています。
-    </div>
   </div>
 
   <script>
@@ -179,15 +167,51 @@
       { label: "C# / Db", pc: 1 },
       { label: "D", pc: 2 },
       { label: "D# / Eb", pc: 3 },
-      { label: "E / Fb", pc: 4 },
-      { label: "F / E#", pc: 5 },
+      { label: "E", pc: 4 },
+      { label: "F", pc: 5 },
       { label: "F# / Gb", pc: 6 },
       { label: "G", pc: 7 },
       { label: "G# / Ab", pc: 8 },
       { label: "A", pc: 9 },
       { label: "A# / Bb", pc: 10 },
-      { label: "B / Cb", pc: 11 }
+      { label: "B", pc: 11 }
     ];
+
+    function normalizeNoteName(note) {
+      const map = {
+        "Cb": "B",
+        "E#": "F",
+        "Fb": "E"
+      };
+
+      return map[note] || note;
+    }
+
+    const germanNoteNames = {
+      "C": "C（ツェー）",
+      "C#": "Cis（チス）",
+      "Db": "Des（デス）",
+      "D": "D（デー）",
+      "D#": "Dis（ディス）",
+      "Eb": "Es（エス）",
+      "E": "E（エー）",
+      "F": "F（エフ）",
+      "F#": "Fis（フィス）",
+      "Gb": "Ges（ゲス）",
+      "G": "G（ゲー）",
+      "G#": "Gis（ギス）",
+      "Ab": "As（アス）",
+      "A": "A（アー）",
+      "A#": "Ais（アイス）",
+      "Bb": "B（ベー）",
+      "B": "H（ハー）"
+    };
+
+    function getGermanNames(notes) {
+      return notes
+        .map(normalizeNoteName)
+        .map(note => germanNoteNames[note] || note);
+    }
 
     let currentQuestion = null;
     let selected = new Set();
@@ -287,25 +311,39 @@
     }
 
     function checkAnswer() {
+      if (!currentQuestion) {
+        document.getElementById("result").textContent =
+          "問題が作られていません。ページを再読み込みしてください。";
+        return;
+      }
+
       const answer = currentQuestion.pcs;
+
       const isCorrect =
         selected.size === answer.length &&
         answer.every(pc => selected.has(pc));
 
       total++;
 
+      const displayTones = currentQuestion.tones.map(normalizeNoteName);
+      const germanNames = getGermanNames(currentQuestion.tones);
+
       if (isCorrect) {
         correct++;
         document.getElementById("result").textContent =
           "正解。\n\n" +
           currentQuestion.chordName + " = " +
-          currentQuestion.tones.join(" / ");
+          displayTones.join(" / ") + "\n\n" +
+          "ドイツ音名：\n" +
+          germanNames.join(" / ");
       } else {
         document.getElementById("result").textContent =
           "違うかも。\n\n" +
           "正解：\n" +
           currentQuestion.chordName + " = " +
-          currentQuestion.tones.join(" / ");
+          displayTones.join(" / ") + "\n\n" +
+          "ドイツ音名：\n" +
+          germanNames.join(" / ");
       }
 
       localStorage.setItem("total", total);
